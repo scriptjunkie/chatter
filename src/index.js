@@ -3,8 +3,7 @@ import { RtcBroker } from './rtcbroker.js';
 import { generate, encrypt_keys_with_password, decrypt_keys_with_password, wrap_to, seal_to, unseal, sign, verify } from './crypto.js';
 
 const MESSAGE_SELF_ANNOUNCE = 0x11; //announce your pubkey and ID's
-const MESSAGE_KNOWN_LINKS = 0x12;
-const MESSAGE_KNOWN_KEYS = 0x13;
+const MESSAGE_KNOWN_KEYS_AND_LINKS = 0x12;
 const MESSAGE_PING = 0x14;
 const MESSAGE_FWD = 0x15; //scheduled forward
 const MESSAGE_PADDED = 0x16;
@@ -172,10 +171,10 @@ class Note{
 
 	//what to do when a new peer connection happens
 	async #newconn(peer_id, server_id){
-		//Prep mapping translation table
+		// Prep mapping translation table
 		this.#realms[server_id].their_server_id_to_ours[peer_id] = {};
 		this.#realms[server_id].their_nodeid_to_ours[peer_id] = {};
-		//send MESSAGE_SELF_ANNOUNCE (code, pubraw, [known servers], 0, [my aliases]...
+		// send MESSAGE_SELF_ANNOUNCE (code, pubraw, [known servers], 0, [my aliases]...
 		let messagechunks = [new Uint8Array([MESSAGE_SELF_ANNOUNCE]), this.#my_keys.pubraw];
 		for(let server_j in this.#server_ids){
 			console.log('sending server ID ', server_j);
@@ -192,30 +191,23 @@ class Note{
 		console.log('sending self announcement to ', peer_id,' length ',announce.byteLength);
 		this.#realms[server_id].rtc.send(peer_id,announce);
 
-		//Send known key list (a.k.a. nodes) which is indexable
-		let known_keys_chunks = [new Uint8Array([MESSAGE_KNOWN_KEYS])];
-		known_keys_chunks.push(pack(this.#known_keys.length));
+		// Send known keys and links by nodeid
+		let known_keys_and_links_chunks = [new Uint8Array([MESSAGE_KNOWN_KEYS_AND_LINKS])];
+		known_keys_and_links_chunks.push(pack(this.#known_keys.length));
 		for(let key of this.#known_keys){
-			known_keys_chunks.push(b64decode(key));
+			known_keys_and_links_chunks.push(b64decode(key));
 		}
-		const keys = await (new Blob(known_keys_chunks).arrayBuffer());
-		console.log('sending keys to ', peer_id,' length ',keys.byteLength);
-		this.#realms[server_id].rtc.send(peer_id, keys);
-
-		//Send known links by nodeid
-		let known_links_chunks = [new Uint8Array([MESSAGE_KNOWN_LINKS])];
 		for(let src = 0; src < this.#idx_links.length; src++){
 			for(let dst of this.#idx_links[src]){
 				if(src < dst){ // only do one direction, a->b, not b->a
-					console.log('prepping link to send ',src,' -> ',dst);
-					known_links_chunks.push(pack(src));
-					known_links_chunks.push(pack(dst));
+					known_keys_and_links_chunks.push(pack(src));
+					known_keys_and_links_chunks.push(pack(dst));
 				}
 			}
 		}
-		const links = await (new Blob(known_links_chunks).arrayBuffer());
-		console.log('sending links to ', peer_id,' length ',links.byteLength);
-		this.#realms[server_id].rtc.send(peer_id, links);
+		const keys_and_links = await (new Blob(known_keys_and_links_chunks).arrayBuffer());
+		console.log('sending keys and links to ', peer_id,' length ',keys_and_links.byteLength);
+		this.#realms[server_id].rtc.send(peer_id, keys_and_links);
 	}
 
 	//handles a peer message
@@ -252,7 +244,7 @@ class Note{
 				console.log("peer's alias ", their_server_id, ' (',this.#realms[server_id].their_server_id_to_ours[peer_int][their_server_id],') ', their_client_id);
 				this.#set_node_pubkey(make_id(this.#realms[server_id].their_server_id_to_ours[peer_int][their_server_id], their_client_id), peer_b64);
 			}
-		}else if(code === MESSAGE_KNOWN_KEYS){
+		}else if(code === MESSAGE_KNOWN_KEYS_AND_LINKS){
 			let num_keys;
 			[num_keys, message] = unpack(message);
 			for(let i = 0; i < num_keys; i++){
@@ -262,7 +254,6 @@ class Note{
 				this.#realms[server_id].their_nodeid_to_ours[peer_int][i] = this.#nodeid_for_pubkey(pubk64);
 				console.log('received note of key ',pubk64,' - node ', this.#nodeid_for_pubkey(pubk64));
 			}
-		}else if(code === MESSAGE_KNOWN_LINKS){
 			while(message.length > 0){
 				let src_their_nodeid, dst_their_nodeid;
 				[src_their_nodeid, message] = unpack(message);

@@ -32,6 +32,7 @@ class Note{
 	#realms;
 	#my_keys;
 	#my_hidden_keys;
+	#my_peers;
 	#timeout;
 
 	constructor(){
@@ -39,7 +40,7 @@ class Note{
 		this.#known_keys = []; //idx -> pubkey64
 		this.#known_aliases = []; //idx -> Set(node_id)
 		this.#known_key_idxs = {}; //pubkey64 -> idx
-		this.#nodes = {}; //node_id -> pubkey
+		this.#nodes = {}; //node_id -> pubkey64
 		this.#known_forwards = {}; //key -> next_hop_id
 		this.#my_forwards = {}; //key -> next_hop_key, next_wrapping_key
 		this.#my_forward_chain = []; //{node, {host: host_key, keys: keyset}
@@ -49,6 +50,7 @@ class Note{
 		this.#realms = {}; //server_id -> {rtc, [our stuff]}
 		this.#my_keys = null;
 		this.#my_hidden_keys = null;
+		this.#my_peers = {}; //idx -> Set(server_id)
 		const server_cache_string = localStorage.getItem('NoteKnownServers');
 		this.#known_servers = (server_cache_string === null ? {} : JSON.parse(server_cache_string)); //url -> id
 		this.#timeout = setTimeout(() => this.#dosends(), PING_INTERVAL_MS); //send polls regularly
@@ -57,7 +59,7 @@ class Note{
 
 	async init(){
 		this.#my_keys = await generate();
-		this.#nodeid_for_pubkey(this.#my_keys.pub64); //set us as idx 0.
+		this.#nodeidx_for_pubkey(this.#my_keys.pub64); //set us as idx 0.
 		this.#my_hidden_keys = await generate();
 		console.log('my node key ', this.#my_keys.pub64);
 		const offset = crypto.getRandomValues(new Uint32Array(1))[0] % seedservers.length;
@@ -126,8 +128,24 @@ class Note{
 				//don't really do anything here
 			},
 			(node_id)=>{ // onnodeexit
-				console.log('TODO: handle node exit');
-				let our_node_id = make_id(server_id, node_id);
+				console.log('TODO: propagate handle node exit');
+				//clear node aliases
+				const full_node_id = make_id(server_id, node_id);
+				if(full_node_id in this.#nodes){
+					const idx = this.#known_key_idxs[this.#nodes[full_node_id]];
+					if(idx in this.#known_aliases){
+						this.#known_aliases[idx].delete(full_node_id);
+					}
+					//Now close peer conn
+					if(idx in this.#my_peers && this.#my_peers[idx].has(server_id)){
+						this.#my_peers[idx].delete(server_id);
+						console.log("lost link idx now num ",this.#my_peers[idx].size);
+						if(this.#my_peers[idx].size === 0){ // no longer link to that pkey
+							this.#forget_known_link(0, idx);
+						}
+					}else console.log("how did we lose link",their_node_id,"(",idx,") and not have it?");
+					delete this.#nodes[full_node_id];
+				}
 				//if(our_node_id in this.#known_links)
 				//	//TODO: alert peers not on this server node is now gone
 				//	Object.keys(this.#known_links[our_node_id]).forEach(peer=>this.#forget_known_link(our_node_id, peer));
@@ -140,12 +158,12 @@ class Note{
 
 	#set_node_pubkey(server_peer_id, pub64){
 		this.#nodes[server_peer_id] = pub64;
-		let their_nodeid = this.#nodeid_for_pubkey(pub64);
-		this.#known_aliases[their_nodeid].add(server_peer_id); //nodeid -> server/peer ints id
-		return their_nodeid;
+		let their_idx = this.#nodeidx_for_pubkey(pub64);
+		this.#known_aliases[their_idx].add(server_peer_id); //nodeid -> server/peer ints id
+		return their_idx;
 	}
 
-	#nodeid_for_pubkey(pub64) {
+	#nodeidx_for_pubkey(pub64) {
 		if(!(pub64 in this.#known_key_idxs)){ //newly known node!
 			this.#known_key_idxs[pub64] = this.#known_keys.length; //key64 -> nodeid
 			this.#known_keys.push(pub64); // nodeid -> key64
@@ -165,6 +183,10 @@ class Note{
 	}
 
 	#forget_known_link(alice_idx, bob_idx){
+		if(this.#idx_links[alice_idx].has(bob_idx)){
+			console.log('FORGETTING lost link '+alice_idx+' <-> '+bob_idx);
+			//TODO update peers about link change
+		}else console.log('NOT forgetting lost link '+alice_idx+' <-> '+bob_idx+'?');
 		this.#idx_links[alice_idx].delete(bob_idx);
 		this.#idx_links[bob_idx].delete(alice_idx);
 	}
@@ -223,9 +245,12 @@ class Note{
 			let pubk;
 			[pubk, message] = splice(message, KEY_LENGTH);
 			const peer_b64 = b64encode(pubk);
-			const their_nodeid = this.#set_node_pubkey(make_id(server_id, peer_int), peer_b64); //this makes them a new node if not known before
-			console.log('self announce from '+server_id+'_'+peer_int+' which is now ID '+their_nodeid);
-			this.#note_known_link(0, their_nodeid); //save the link. We're always 0
+			const their_idx = this.#set_node_pubkey(make_id(server_id, peer_int), peer_b64); //this makes them a new node if not known before
+			console.log('self announce from '+server_id+'_'+peer_int+' which is now ID '+their_idx);
+			this.#note_known_link(0, their_idx); //save the link. We're always 0
+			if(!(their_idx in this.#my_peers))
+				this.#my_peers[their_idx] = new Set();
+			this.#my_peers[their_idx].add(server_id);
 			while(message.length > 0){
 				let their_server_id, server_url_length, server_url_bin;
 				[their_server_id, message] = unpack(message);
@@ -251,8 +276,8 @@ class Note{
 				let pubk;
 				[pubk, message] = splice(message, KEY_LENGTH);
 				const pubk64 = b64encode(pubk);
-				this.#realms[server_id].their_nodeid_to_ours[peer_int][i] = this.#nodeid_for_pubkey(pubk64);
-				console.log('received note of key ',pubk64,' - node ', this.#nodeid_for_pubkey(pubk64));
+				this.#realms[server_id].their_nodeid_to_ours[peer_int][i] = this.#nodeidx_for_pubkey(pubk64);
+				console.log('received note of key ',pubk64,' - node ', this.#nodeidx_for_pubkey(pubk64));
 			}
 			while(message.length > 0){
 				let src_their_nodeid, dst_their_nodeid;
@@ -346,8 +371,8 @@ class Note{
 	//Sends a message over the network in a metadata-hiding wrapped way by selecting one or more intermediate hops
 	async #send_wrapped_routed(host, messagebuffer){
 		let host64 = b64encode(host);
-		const my_idx = this.#nodeid_for_pubkey(this.#my_keys.pub64);
-		const their_idx = this.#nodeid_for_pubkey(host64);
+		const my_idx = this.#nodeidx_for_pubkey(this.#my_keys.pub64);
+		const their_idx = this.#nodeidx_for_pubkey(host64);
 		//First find random route as indexed array
 		const ROUTE_LENGTH = 3;
 		const rand_route_indexed = find_route_of_length(my_idx, ROUTE_LENGTH, their_idx, this.#idx_links);

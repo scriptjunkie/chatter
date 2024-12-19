@@ -205,6 +205,14 @@ class RtcBroker {
 				this.#pending_peer_connections[peer_id].rtcpc.close();
 				delete this.#pending_peer_connections[peer_id];
 			}
+			//immediately close peer link. It's likely they closed their webpage/browser, and this will time out eventually
+			//but the peer_id is invalid right now and may be re-used leading to bugs if we don't close now.
+			//This is kind of sad since there's a rare chance the server just has a bug or died and we could continue strictly
+			//peer-to-peer with our webrtc connection... but we can't handle that right now since our addressing is server-based.
+			if(peer_id in this.#links){
+				this.#links[peer_id].rtcpc.close();
+				delete this.#links[peer_id];
+			}
 			if(this.#client_id !== peer_id && this.#onnodeexit)
 				this.#onnodeexit(peer_id);
 		}else if(u8[0] == CODE_FULL_LIST){

@@ -31,3 +31,4 @@ Each endpoint keep a list of server URL's, assigning each a (local) integer.
 Each server keep a list of connected clients, assigning each a server-specific integer.
 Endpoints are identified by a pair of numbers - the server int and client int.
 Peer links are identified by a quad - server/client for the first side and server/client for the other side.
+

@@ -2,13 +2,40 @@
 <input type="password" id="pwbox">
 <button id="loadpwbutton">load saved profile</button>
 <button id="savepwbutton">Save profile</button>
+<button id="graphbutton">Graph</button>
 <span id="deleteme">...</span>
+<div id="graphdiv"></div>
 <script>
 const seedservers = [
 	'wss://peershare.us/wsock',
 	'wss://social.scriptjunkie.us/wsock'
 ];
 const iceserver = 'stun:stun.peershare.us:5678';
+
+s = document.createElement('script');
+s.setAttribute('src', 'viz.js');
+s.onload=()=>{
+graphbutton.onclick=()=>{
+  let dg = 'graph G {\n';
+	const lnks = window.context.getlinks();
+	for(let i = 0; i < lnks[0].length;i++){
+		for(let j of lnks[0][i]){
+			dg += "alias_"+i+" -- node_"+j+";\n";
+		}
+	}
+	for(let i = 0; i < lnks[1].length;i++){
+		for(let j of lnks[1][i]){
+			if(i < j){
+				dg += "alias_"+i+" -- alias_"+j+";\n";
+			}
+		}
+	}
+	dg += '}';
+	console.log(dg);
+	graphdiv.innerHTML='<hr>'+Viz(dg, "svg");
+};
+};
+document.head.appendChild(s);
 </script>
 
 <script src="dist/main.js" type="module"></script>

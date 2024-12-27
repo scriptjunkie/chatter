@@ -36,6 +36,9 @@ graphbutton.onclick=()=>{
 };
 };
 document.head.appendChild(s);
+function trysrc(){
+  import("./chattier/src/index.js").then((chattier) => {window.context = chattier.context});
+}
 </script>
 
-<script src="dist/main.js" type="module"></script>
+<script src="dist/main.js" type="module" onerror="trysrc()"></script>

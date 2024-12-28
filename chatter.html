@@ -2,6 +2,7 @@
 <input type="password" id="pwbox">
 <button id="loadpwbutton">load saved profile</button>
 <button id="savepwbutton">Save profile</button>
+<button id="startbutton">Start my chat</button>
 <button id="graphbutton">Graph</button>
 <span id="deleteme">...</span>
 <div id="graphdiv"></div>
@@ -36,8 +37,16 @@ graphbutton.onclick=()=>{
 };
 };
 document.head.appendChild(s);
+function setupButtons(){
+	loadpwbutton.onclick = () => context.set_keys_from_password(pwbox.value);
+	savepwbutton.onclick = () => context.generate_keys().then(()=>context.export_keys_with_password(pwbox.value));
+	startbutton.onclick = () => context.setup_my_forwards();
+}
 function trysrc(){
-  import("./chattier/src/index.js").then((chattier) => {window.context = chattier.context});
+  import("./chattier/src/index.js").then((chattier) => {
+		window.context = chattier.context;
+		setupButtons();
+	});
 }
 </script>
 

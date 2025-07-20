@@ -4,7 +4,7 @@
 <button id="savepwbutton">Save profile</button>
 <button id="startbutton">Start my chat</button>
 <button id="graphbutton">Graph</button>
-<span id="deleteme">...</span>
+<span id="keyspan">...</span>
 <div id="graphdiv"></div>
 <script>
 const seedservers = [
@@ -41,7 +41,12 @@ function setupButtons(){
 	context.set_debug_mode(true);
 	loadpwbutton.onclick = () => context.set_keys_from_password(pwbox.value);
 	savepwbutton.onclick = () => context.generate_keys().then(()=>context.export_keys_with_password(pwbox.value));
-	startbutton.onclick = () => context.setup_my_forwards();
+	startbutton.onclick = () => {
+		context.generate_keys().then(()=>{
+			context.setup_my_forwards(true);
+			keyspan.innerHTML = 'My ID: '+context.get_my_id();
+		});
+	};
 }
 function trysrc(){
   import("./chattier/src/index.js").then((chattier) => {

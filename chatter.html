@@ -4,14 +4,24 @@
 <button id="savepwbutton">Save profile</button>
 <button id="startbutton">Start my chat</button>
 <button id="graphbutton">Graph</button>
+<button id="logsbutton">Get logs</button>
+<input id="lognum" type="number" value="1">
 <span id="keyspan">...</span>
 <div id="graphdiv"></div>
+<pre id="logsout"></pre>
 <script>
 const seedservers = [
 	'wss://peershare.us/wsock',
 	'wss://social.scriptjunkie.us/wsock'
 ];
-const iceserver = 'stun:stun.peershare.us:5678';
+let hashopts = {};
+if(location.hash !== ''){
+	for(let optstr of location.hash.substr(1).split("&")){
+		const idx = optstr.indexOf('=');
+		hashopts[optstr.split('=')[0]] = idx === -1 ? 0 : decodeURIComponent(optstr.substr(idx + 1));
+	}
+}
+const iceserver = 'iceserver' in hashopts ? hashopts['iceserver'] : 'stun:stun.peershare.us:5678';
 
 s = document.createElement('script');
 s.setAttribute('src', 'viz.js');
@@ -34,6 +44,13 @@ graphbutton.onclick=()=>{
 	dg += '}';
 	console.log(dg);
 	graphdiv.innerHTML='<hr>'+Viz(dg, "svg");
+};
+logsbutton.onclick=()=>{
+	logsout.innerHTML='';
+	context.get_con_logs(lognum.value).then(l=>l.forEach(t=>{
+		console.log(t);
+		logsout.appendChild(document.createTextNode(JSON.stringify(t)+"\n"));
+	}));
 };
 };
 document.head.appendChild(s);

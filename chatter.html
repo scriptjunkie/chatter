@@ -6,71 +6,119 @@
 <button id="graphbutton">Graph</button>
 <button id="logsbutton">Get logs</button>
 <input id="lognum" type="number" value="1">
+<button id="newconvobutton" style="display: none;">Start chat with</button><input id="newconvoid" type="text" style="display: none;">
 <span id="keyspan">...</span>
 <div id="graphdiv"></div>
+<div id="convodiv"></div>
 <pre id="logsout"></pre>
 <script>
-const seedservers = [
-	'wss://peershare.us/wsock',
-	'wss://social.scriptjunkie.us/wsock'
-];
-let hashopts = {};
-if(location.hash !== ''){
-	for(let optstr of location.hash.substr(1).split("&")){
-		const idx = optstr.indexOf('=');
-		hashopts[optstr.split('=')[0]] = idx === -1 ? 0 : decodeURIComponent(optstr.substr(idx + 1));
+	const seedservers = [
+		'wss://peershare.us/wsock',
+		'wss://social.scriptjunkie.us/wsock'
+	];
+	let hashopts = {};
+	if (location.hash !== '') {
+		for (let optstr of location.hash.substr(1).split("&")) {
+			const idx = optstr.indexOf('=');
+			hashopts[optstr.split('=')[0]] = idx === -1 ? 0 : decodeURIComponent(optstr.substr(idx + 1));
+		}
 	}
-}
-const iceserver = 'iceserver' in hashopts ? hashopts['iceserver'] : 'stun:stun.peershare.us:5678';
+	const iceserver = 'iceserver' in hashopts ? hashopts['iceserver'] : 'stun:stun.peershare.us:5678';
 
-s = document.createElement('script');
-s.setAttribute('src', 'viz.js');
-s.onload=()=>{
-graphbutton.onclick=()=>{
-  let dg = 'graph G {\n';
-	const lnks = window.context.getlinks();
-	for(let i = 0; i < lnks[0].length;i++){
-		for(let j of lnks[0][i]){
-			dg += "alias_"+i+" -- node_"+j+";\n";
-		}
-	}
-	for(let i = 0; i < lnks[1].length;i++){
-		for(let j of lnks[1][i]){
-			if(i < j){
-				dg += "alias_"+i+" -- alias_"+j+";\n";
+	s = document.createElement('script');
+	s.setAttribute('src', 'viz.js');
+	s.onload = () => {
+		graphbutton.onclick = () => {
+			let dg = 'graph G {\n';
+			const lnks = window.context.getlinks();
+			for (let i = 0; i < lnks[0].length; i++) {
+				for (let j of lnks[0][i]) {
+					dg += "alias_" + i + " -- node_" + j + ";\n";
+				}
 			}
-		}
-	}
-	dg += '}';
-	console.log(dg);
-	graphdiv.innerHTML='<hr>'+Viz(dg, "svg");
-};
-logsbutton.onclick=()=>{
-	logsout.innerHTML='';
-	context.get_con_logs(lognum.value).then(l=>l.forEach(t=>{
-		console.log(t);
-		logsout.appendChild(document.createTextNode(JSON.stringify(t)+"\n"));
-	}));
-};
-};
-document.head.appendChild(s);
-function setupButtons(){
-	context.set_debug_mode(true);
-	loadpwbutton.onclick = () => context.set_keys_from_password(pwbox.value);
-	savepwbutton.onclick = () => context.generate_keys().then(()=>context.export_keys_with_password(pwbox.value));
-	startbutton.onclick = () => {
-		context.generate_keys().then(()=>{
-			context.setup_my_forwards(true);
-			keyspan.innerHTML = 'My ID: '+context.get_my_id();
-		});
+			for (let i = 0; i < lnks[1].length; i++) {
+				for (let j of lnks[1][i]) {
+					if (i < j) {
+						dg += "alias_" + i + " -- alias_" + j + ";\n";
+					}
+				}
+			}
+			dg += '}';
+			console.log(dg);
+			graphdiv.innerHTML = '<hr>' + Viz(dg, "svg");
+		};
+		logsbutton.onclick = () => {
+			logsout.innerHTML = '';
+			context.get_con_logs(parseInt(lognum.value)).then(l => l.forEach(t => {
+				console.log(t);
+				logsout.appendChild(document.createTextNode(t + "\n"));
+			}));
+		};
+		newconvobutton.onclick = () => {
+			newChat(newconvoid.value);
+		};
 	};
-}
-function trysrc(){
-  import("./chattier/src/index.js").then((chattier) => {
-		window.context = chattier.context;
-		setupButtons();
-	});
-}
+	document.head.appendChild(s);
+	let chats = {};
+	function receivedChatMsg(m, sender_pub64) {
+		if (!(sender_pub64 in chats)) {
+			newChat(sender_pub64);
+		}
+		chats[sender_pub64].appendChild(document.createTextNode(time() + ' them: ' + m + '\n'));
+	}
+	function time(){
+		d=new Date();
+		return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()+" "+d.getHours()+":"+(d.getMinutes()<10?"0":"")+d.getMinutes();
+	}
+	function newChat(pub64) {
+		console.log("starting chat with ",pub64);
+		//Create new chat window
+		let thiscvdiv = document.createElement('div');
+		convodiv.appendChild(thiscvdiv);
+		thiscvdiv.appendChild(document.createTextNode('Conversation with ' + pub64));
+		let chatlog = document.createElement('pre');
+		thiscvdiv.appendChild(chatlog);
+		let inp = document.createElement('input');
+		thiscvdiv.appendChild(inp);
+		let sendbutton = document.createElement('button');
+		sendbutton.appendChild(document.createTextNode('Send'));
+		sendbutton.onclick = () => {
+			console.log("queing msg send with ",pub64, inp.value);
+			if(context.send_chat(pub64, inp.value)){
+				chatlog.appendChild(document.createTextNode(time()+' me: ' + inp.value + '\n'));
+				inp.value = '';
+			}
+		};
+		thiscvdiv.appendChild(sendbutton);
+		chats[pub64] = chatlog;
+	}
+	function chatStarted(){
+		startbutton.style.display = 'none';
+		pwbox.style.display = 'none';
+		newconvoid.style.display = '';
+		newconvobutton.style.display = '';
+	}
+	function setupButtons() {
+		context.set_debug_mode(true);
+		loadpwbutton.onclick = () => context.set_keys_from_password(pwbox.value, receivedChatMsg).then(chatStarted);
+		savepwbutton.onclick = () => context.generate_keys(receivedChatMsg).then(() => {
+			context.export_keys_with_password(pwbox.value);
+			chatStarted();
+		});
+		startbutton.onclick = () => {
+			context.generate_keys(receivedChatMsg).then(() => {
+				context.setup_my_forwards(true, receivedChatMsg);
+				keyspan.innerHTML = 'My ID: ' + context.get_my_id();
+				chatStarted();
+			});
+		};
+	}
+	function trysrc() {
+		import("./chattier/src/index.js").then((chattier) => {
+			window.context = chattier.context;
+			setupButtons();
+		});
+	}
 </script>
 
 <script src="dist/main.js" type="module" onerror="trysrc()"></script>

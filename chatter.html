@@ -10,13 +10,11 @@
       margin: 0;
       padding: 0;
     }
-
     body {
       height: 100vh;
       display: flex;
       flex-direction: column;
     }
-
     #body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       background-color: #f0f2f5;
@@ -26,7 +24,6 @@
       align-items: center;
       flex-direction: column;
     }
-
     .header {
       background-color: #075e54;
       color: white;
@@ -38,11 +35,9 @@
       align-items: center;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-
     .header .title {
       font-weight: 400;
     }
-
     #welcome {
       width: 100%;
       max-width: 420px;
@@ -53,7 +48,6 @@
       text-align: center;
       padding: 40px 30px;
     }
-
     .logo {
       width: 100px;
       height: 100px;
@@ -67,26 +61,22 @@
       background-position: center;
       color: white;
     }
-
     h1 {
       font-size: 1.8rem;
       color: #111;
       margin-bottom: 12px;
     }
-
     p {
       color: #667781;
       font-size: 1rem;
       margin-bottom: 40px;
       line-height: 1.5;
     }
-
     .options {
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
-
     button {
       padding: 14px 20px;
       font-size: 1.1rem;
@@ -96,43 +86,35 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-
     .btn-primary {
       background-color: #075e54;
       color: white;
     }
-
     .btn-primary:hover {
       background-color: #064c43;
     }
-
     .btn-secondary {
       background-color: #e9ecef;
       color: #111;
     }
-
     .btn-secondary:hover {
       background-color: #dde2e6;
     }
-
     .password-section {
       margin-top: 30px;
       padding-top: 30px;
       border-top: 1px solid #eee;
     }
-
     .password-section h2 {
       font-size: 1.2rem;
       color: #333;
       margin-bottom: 16px;
     }
-
     .password-input-group {
       display: flex;
       gap: 10px;
       margin-bottom: 16px;
     }
-
     input {
       flex: 1;
       padding: 14px 16px;
@@ -141,41 +123,33 @@
       font-size: 1rem;
       outline: none;
     }
-
 		.input-area input {
 		  padding: 12px 15px;
 		  border: none;
 		  border-radius: 25px;
 		  background-color: #ffffff;
 		}
-
-
     input:focus {
       border-color: #075e54;
     }
-
     .password-note {
       font-size: 0.85rem;
       color: #888;
       margin-top: 8px;
     }
-
     /* Responsive adjustments */
     @media (max-width: 480px) {
       #welcome {
         margin: 20px;
         padding: 30px 20px;
       }
-
       .password-input-group {
         flex-direction: column;
       }
-
       button {
         padding: 16px;
       }
     }
-
 		.chat-container {
 		  width: 100%;
 		  max-width: 800px;
@@ -186,7 +160,6 @@
 		  flex-direction: column;
 		  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 		}
-
 		.chat-header {
 		  background-color: #075e54; /* WhatsApp-like green */
 		  color: white;
@@ -197,7 +170,6 @@
 		  align-items: center;
 		  gap: 10px;
 		}
-
 		.chat-header::before {
 		  content: '';
 		  width: 40px;
@@ -207,7 +179,6 @@
 		  background-image: url('https://via.placeholder.com/40'); /* Placeholder avatar */
 		  background-size: cover;
 		}
-
 		.messages {
 		  flex: 1;
 		  padding: 20px;
@@ -219,7 +190,6 @@
 		  background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Optional WhatsApp background */
 		  background-size: cover;
 		}
-
 		.message {
 		  max-width: 70%;
 		  padding: 10px 15px;
@@ -228,13 +198,11 @@
 		  position: relative;
 		  word-wrap: break-word;
 		}
-
 		.message.received {
 		  align-self: flex-start;
 		  background-color: #ffffff;
 		  border-bottom-left-radius: 4px;
 		}
-
 		.message.received::after {
 		  content: '';
 		  position: absolute;
@@ -246,14 +214,12 @@
 		  border-right-color: #ffffff;
 		  border-bottom-color: #ffffff;
 		}
-
 		.message.sent {
 		  align-self: flex-end;
 		  background-color: #d9fdd3;
 		  border-bottom-right-radius: 4px;
 		  color: #111;
 		}
-
 		.message.sent::after {
 		  content: '';
 		  position: absolute;
@@ -265,7 +231,6 @@
 		  border-left-color: #d9fdd3;
 		  border-bottom-color: #d9fdd3;
 		}
-
 		.message time {
 		  display: block;
 		  font-size: 0.7rem;
@@ -273,14 +238,12 @@
 		  text-align: right;
 		  margin-top: 5px;
 		}
-
 		.input-area {
 		  display: flex;
 		  padding: 10px;
 		  background-color: #f0f0f0;
 		  border-top: 1px solid #ddd;
 		}
-
 		.input-area button {
 		  margin-left: 10px;
 		  padding: 0 20px;
@@ -291,11 +254,9 @@
 		  cursor: pointer;
 		  font-weight: bold;
 		}
-
 		.input-area button:hover {
 		  background-color: #064c43;
 		}
-
 		/* Responsive adjustments */
 		@media (max-width: 600px) {
 		  .chat-container {
@@ -322,17 +283,14 @@
       justify-content: center;
       font-family: monospace;
     }
-
     .add-contact-btn:hover {
       background-color: rgba(255,255,255,0.1);
     }
-
     .contacts-list {
       flex: 1;
       overflow-y: auto;
       background-color: #ffffff;
     }
-
     .contact {
       display: flex;
       align-items: center;
@@ -341,15 +299,12 @@
       transition: background-color 0.2s;
       border-bottom: 1px solid #f0f0f0;
     }
-
     .contact:hover {
       background-color: #f5f5f5;
     }
-
     .contact.active {
       background-color: #ebebeb;
     }
-
     .contact-avatar {
       width: 50px;
       height: 50px;
@@ -360,19 +315,16 @@
       background-position: center;
       flex-shrink: 0;
     }
-
     .contact-info {
       flex: 1;
       min-width: 0;
     }
-
     .contact-name {
       font-size: 1.1rem;
       font-weight: 500;
       color: #111;
       margin-bottom: 4px;
     }
-
     .contact-last-message {
       font-size: 0.9rem;
       color: #667781;
@@ -380,12 +332,10 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .contact-time {
       font-size: 0.8rem;
       color: #999;
     }
-
     /* Add Contact Modal */
     .modal-overlay {
       position: fixed;
@@ -399,7 +349,6 @@
       justify-content: center;
       z-index: 1000;
     }
-
     .modal {
       background-color: white;
       width: 90%;
@@ -408,7 +357,6 @@
       overflow: hidden;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-
     .modal-header {
       background-color: #075e54;
       color: white;
@@ -418,7 +366,6 @@
       justify-content: space-between;
       align-items: center;
     }
-
     .close-btn {
       background: none;
       border: none;
@@ -431,18 +378,15 @@
       align-items: center;
       justify-content: center;
     }
-
     .modal-body {
       padding: 20px;
     }
-
     .modal-body label {
       display: block;
       margin-bottom: 8px;
       font-weight: 500;
       color: #333;
     }
-
     .modal-body input {
       width: 100%;
       padding: 12px 14px;
@@ -451,11 +395,9 @@
       font-size: 1rem;
       outline: none;
     }
-
     .modal-body input:focus {
       border-color: #075e54;
     }
-
     .modal-footer {
       padding: 15px 20px;
       display: flex;
@@ -463,7 +405,6 @@
       gap: 10px;
       background-color: #f9f9f9;
     }
-
     .modal-footer button {
       padding: 10px 20px;
       border: none;
@@ -471,28 +412,26 @@
       font-weight: 600;
       cursor: pointer;
     }
-
+    .error {
+      color: red;
+    }
     .btn-cancel {
       background-color: #e9ecef;
       color: #333;
     }
-
     .btn-add {
       background-color: #075e54;
       color: white;
     }
-
     .btn-add:hover {
       background-color: #064c43;
     }
-
     /* Empty state */
     #empty {
       text-align: center;
       padding: 60px 20px;
       color: #888;
     }
-
     #empty p {
       margin-top: 15px;
       font-size: 1.1rem;
@@ -504,19 +443,16 @@
       background-color: #f0f2f5;
       flex-direction: column;
     }
-
     #convodiv {
       flex: 1;
       display: none;
     }
-
     #myinfo {
       outline-color: white;
       outline-style: solid;
     }
 	</style>
 </head>
-
 <div class="header">
 	<span id="keyspan">DEBUG CONTROLS:</span>
 	<button id="savepwbutton" style="display:none;">Save profile</button>
@@ -549,6 +485,7 @@
 	      <div class="modal-body">
 	        <label for="newconvoid">Contact key</label>
 	        <input type="text" id="newconvoid" placeholder="asdf...=">
+          <span id="nciError" class="error"></span>
 	      </div>
 	      <div class="modal-footer">
 	        <button class="btn-cancel" onclick="closeModal(addContactModal)">Cancel</button>
@@ -681,9 +618,15 @@
 			}));
 		};
 		newconvobutton.onclick = () => {
-			const theirkey64 = newconvoid.value;
-      closeModal(addContactModal);
-			newChat(theirkey64);
+			const theirkey64 = newconvoid.value.trim();
+      if(theirkey64.match(/^[0-9a-zA-Z\+\/]{87}=$/)){
+        closeModal(addContactModal);
+  			newChat(theirkey64);
+        newconvoid.value = '';
+        nciError.innerHTML = '';
+      }else{
+        nciError.innerHTML = 'Error: invalid key';
+      }
 		};
 	};
 	document.head.appendChild(s);

@@ -1,17 +1,611 @@
-<!doctype html>
-<input type="password" id="pwbox">
-<button id="loadpwbutton">load saved profile</button>
-<button id="savepwbutton">Save profile</button>
-<button id="startbutton">Start my chat</button>
-<button id="graphbutton">Graph</button>
-<button id="logsbutton">Get logs</button>
-<input id="lognum" type="number" value="1">
-<button id="newconvobutton" style="display: none;">Start chat with</button><input id="newconvoid" type="text" style="display: none;">
-<span id="keyspan">...</span>
-<div id="graphdiv"></div>
-<div id="convodiv"></div>
-<pre id="logsout"></pre>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Note - Welcome</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .header {
+      background-color: #075e54;
+      color: white;
+      padding: 15px 20px;
+      font-size: 1.3rem;
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .header .title {
+      font-weight: 400;
+    }
+
+    .welcome-container {
+      width: 100%;
+      max-width: 420px;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      padding: 40px 30px;
+    }
+
+    .logo {
+      width: 100px;
+      height: 100px;
+      background-color: #075e54;
+      border-radius: 50%;
+      margin: 0 auto 30px;
+      /*background-image: url('https://via.placeholder.com/100?text=Chat');*/
+      font-size: 90px;
+      font-family: serif;
+      background-size: cover;
+      background-position: center;
+      color: white;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      color: #111;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: #667781;
+      font-size: 1rem;
+      margin-bottom: 40px;
+      line-height: 1.5;
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    button {
+      padding: 14px 20px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary {
+      background-color: #075e54;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #064c43;
+    }
+
+    .btn-secondary {
+      background-color: #e9ecef;
+      color: #111;
+    }
+
+    .btn-secondary:hover {
+      background-color: #dde2e6;
+    }
+
+    .password-section {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid #eee;
+    }
+
+    .password-section h2 {
+      font-size: 1.2rem;
+      color: #333;
+      margin-bottom: 16px;
+    }
+
+    .password-input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    input {
+      flex: 1;
+      padding: 14px 16px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+		.input-area input {
+		  padding: 12px 15px;
+		  border: none;
+		  border-radius: 25px;
+		  background-color: #ffffff;
+		}
+
+
+    input:focus {
+      border-color: #075e54;
+    }
+
+    .password-note {
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+      .welcome-container {
+        margin: 20px;
+        padding: 30px 20px;
+      }
+
+      .password-input-group {
+        flex-direction: column;
+      }
+
+      button {
+        padding: 16px;
+      }
+    }
+
+		.chat-container {
+		  width: 100%;
+		  max-width: 800px;
+		  height: 90vh;
+		  background-color: #ffffff;
+		  border-radius: 12px;
+		  overflow: hidden;
+		  display: flex;
+		  flex-direction: column;
+		  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+		}
+
+		.chat-header {
+		  background-color: #075e54; /* WhatsApp-like green */
+		  color: white;
+		  padding: 15px 20px;
+		  font-size: 1.2rem;
+		  font-weight: 500;
+		  display: flex;
+		  align-items: center;
+		  gap: 10px;
+		}
+
+		.chat-header::before {
+		  content: '';
+		  width: 40px;
+		  height: 40px;
+		  background-color: #ddd;
+		  border-radius: 50%;
+		  background-image: url('https://via.placeholder.com/40'); /* Placeholder avatar */
+		  background-size: cover;
+		}
+
+		.messages {
+		  flex: 1;
+		  padding: 20px;
+		  overflow-y: auto;
+		  display: flex;
+		  flex-direction: column;
+		  gap: 10px;
+		  background-color: #e5ddd5; /* Subtle chat background pattern could be added */
+		  background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Optional WhatsApp background */
+		  background-size: cover;
+		}
+
+		.message {
+		  max-width: 70%;
+		  padding: 10px 15px;
+		  border-radius: 18px;
+		  line-height: 1.4;
+		  position: relative;
+		  word-wrap: break-word;
+		}
+
+		.message.received {
+		  align-self: flex-start;
+		  background-color: #ffffff;
+		  border-bottom-left-radius: 4px;
+		}
+
+		.message.received::after {
+		  content: '';
+		  position: absolute;
+		  bottom: 0;
+		  left: -8px;
+		  width: 0;
+		  height: 0;
+		  border: 8px solid transparent;
+		  border-right-color: #ffffff;
+		  border-bottom-color: #ffffff;
+		}
+
+		.message.sent {
+		  align-self: flex-end;
+		  background-color: #d9fdd3;
+		  border-bottom-right-radius: 4px;
+		  color: #111;
+		}
+
+		.message.sent::after {
+		  content: '';
+		  position: absolute;
+		  bottom: 0;
+		  right: -8px;
+		  width: 0;
+		  height: 0;
+		  border: 8px solid transparent;
+		  border-left-color: #d9fdd3;
+		  border-bottom-color: #d9fdd3;
+		}
+
+		.message time {
+		  display: block;
+		  font-size: 0.7rem;
+		  color: #888;
+		  text-align: right;
+		  margin-top: 5px;
+		}
+
+		.input-area {
+		  display: flex;
+		  padding: 10px;
+		  background-color: #f0f0f0;
+		  border-top: 1px solid #ddd;
+		}
+
+		.input-area button {
+		  margin-left: 10px;
+		  padding: 0 20px;
+		  background-color: #075e54;
+		  color: white;
+		  border: none;
+		  border-radius: 25px;
+		  cursor: pointer;
+		  font-weight: bold;
+		}
+
+		.input-area button:hover {
+		  background-color: #064c43;
+		}
+
+		/* Responsive adjustments */
+		@media (max-width: 600px) {
+		  .chat-container {
+		    height: 100vh;
+		    border-radius: 0;
+		  }
+		  
+		  .message {
+		    max-width: 85%;
+		  }
+		}
+    .add-contact-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.8rem;
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .add-contact-btn:hover {
+      background-color: rgba(255,255,255,0.1);
+    }
+
+    .contacts-list {
+      flex: 1;
+      overflow-y: auto;
+      background-color: #ffffff;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      padding: 14px 20px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .contact-item:hover {
+      background-color: #f5f5f5;
+    }
+
+    .contact-item.active {
+      background-color: #ebebeb;
+    }
+
+    .contact-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: #ddd;
+      margin-right: 15px;
+      background-size: cover;
+      background-position: center;
+      flex-shrink: 0;
+    }
+
+    .contact-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .contact-name {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #111;
+      margin-bottom: 4px;
+    }
+
+    .contact-last-message {
+      font-size: 0.9rem;
+      color: #667781;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .contact-time {
+      font-size: 0.8rem;
+      color: #999;
+    }
+
+    /* Add Contact Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background-color: white;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+      background-color: #075e54;
+      color: white;
+      padding: 15px 20px;
+      font-size: 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-body label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .modal-body input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .modal-body input:focus {
+      border-color: #075e54;
+    }
+
+    .modal-footer {
+      padding: 15px 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background-color: #f9f9f9;
+    }
+
+    .modal-footer button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-cancel {
+      background-color: #e9ecef;
+      color: #333;
+    }
+
+    .btn-add {
+      background-color: #075e54;
+      color: white;
+    }
+
+    .btn-add:hover {
+      background-color: #064c43;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+    }
+
+    .empty-state p {
+      margin-top: 15px;
+      font-size: 1.1rem;
+    }
+    .contacts {
+      display: none;
+      flex: 1;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f0f2f5;
+      flex-direction: column;
+    }
+	</style>
+</head>
+
+<div class="header">
+	<span id="keyspan">DEBUG CONTROLS:</span>
+	<button id="savepwbutton" style="display:none;">Save profile</button>
+	<button id="graphbutton">Graph</button>
+	<button id="logsbutton">Get logs</button>
+	<input id="lognum" type="number" value="1">
+</div>
+<div id="body">
+	<div class="contacts" id="contacts">
+	  <header class="header">
+	    <div class="title">Chats</div>
+	    <button class="add-contact-btn" onclick="openAddContactModal()" aria-label="Add new contact">+</button>
+	  </header>
+
+	  <div class="contacts-list" id="contactsList">
+	    <!--
+	    <div class="contact-item" onclick="openChat('alice@example.com')">
+	      <div class="contact-avatar"></div>
+	      <div class="contact-info">
+	        <div class="contact-name">Alice Johnson</div>
+	        <div class="contact-last-message">Hey! How's it going?</div>
+	      </div>
+	      <div class="contact-time">2:45 PM</div>
+	    </div>
+	    -->
+	    <div class="empty-state">
+	      <div style="width:100px;height:100px;background:#ddd;border-radius:50%;margin:0 auto;"></div>
+	      <p>No conversations yet.<br>Tap + to add a contact and start chatting.</p>
+	    </div>
+	  </div>
+
+	  <!-- Add Contact Modal -->
+	  <div class="modal-overlay" id="addContactModal">
+	    <div class="modal">
+	      <div class="modal-header">
+	        <span>New Contact</span>
+	        <button class="close-btn" onclick="closeAddContactModal()">×</button>
+	      </div>
+	      <div class="modal-body">
+	        <label for="newconvoid">Contact key</label>
+	        <input type="text" id="newconvoid" placeholder="asdf...=">
+	      </div>
+	      <div class="modal-footer">
+	        <button class="btn-cancel" onclick="closeAddContactModal()">Cancel</button>
+	        <button class="btn-add" id="newconvobutton">Add</button>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+  <div class="welcome-container" id="welcome">
+    <div class="logo" aria-hidden="true">N</div>
+    
+    <h1>Welcome to Note</h1>
+    <p>Secure and private messaging. Choose how you'd like to begin.</p>
+
+    <div class="options">
+      <button class="btn-primary" id="startbutton">
+        Start New Profile
+      </button>
+
+      <button class="btn-secondary" onclick="showPasswordSection()">
+        Load Existing Profile
+      </button>
+    </div>
+
+    <div class="password-section" id="passwordSection" style="display: none;">
+      <h2>Enter Your Password</h2>
+      <div class="password-input-group">
+        <input type="password" id="pwbox" placeholder="Profile password" autocomplete="current-password">
+        <button class="btn-primary" id="loadpwbutton">
+          Unlock
+        </button>
+      </div>
+      <p class="password-note">Your chats are encrypted with this password.</p>
+    </div>
+  </div>
+	<div id="graphdiv"></div>
+	<div id="convodiv"></div>
+	<pre id="logsout"></pre>
 <script>
+  function openAddContactModal() {
+    document.getElementById('addContactModal').style.display = 'flex';
+    document.getElementById('newconvoid').focus();
+  }
+
+  function closeAddContactModal() {
+    document.getElementById('addContactModal').style.display = 'none';
+    document.getElementById('newconvoid').value = '';
+  }
+  function showPasswordSection() {
+    document.getElementById('passwordSection').style.display = 'block';
+    document.getElementById('profilePassword').focus();
+  }
+  // Close modal when clicking outside
+  addContactModal.onclick = function(event) {
+    if (event.target === addContactModal) {
+      closeAddContactModal();
+    }
+  }
 	const seedservers = [
 		'wss://peershare.us/wsock',
 		'wss://social.scriptjunkie.us/wsock'
@@ -55,7 +649,9 @@
 			}));
 		};
 		newconvobutton.onclick = () => {
-			newChat(newconvoid.value);
+			const theirkey64 = newconvoid.value;
+			closeAddContactModal();
+			newChat(theirkey64);
 		};
 	};
 	document.head.appendChild(s);
@@ -64,7 +660,11 @@
 		if (!(sender_pub64 in chats)) {
 			newChat(sender_pub64);
 		}
-		chats[sender_pub64].appendChild(document.createTextNode(time() + ' them: ' + m + '\n'));
+		let sent = document.createElement('div');
+		sent.classList.add('message');
+		sent.classList.add('received');
+		sent.appendChild(document.createTextNode(time()+' them: ' + m + '\n'));
+		chats[sender_pub64].appendChild(sent);
 	}
 	function time(){
 		d=new Date();
@@ -72,29 +672,56 @@
 	}
 	function newChat(pub64) {
 		console.log("starting chat with ",pub64);
+    contacts.style.display = 'none';
+//TODO: use static instead of generating every time?
+		/*
+   <div class="chat-container">
+     <div class="chat-header">...</div>
+     <div class="messages">
+       <div class="message received">... rcvd</div>
+       <div class="message sent">...sent</div>
+     </div>
+     <div class="input-area">
+       <input type="text" placeholder="Type a message...">
+       <button>Send</button>
+     </div>
+   </div>
+		*/
 		//Create new chat window
 		let thiscvdiv = document.createElement('div');
+		thiscvdiv.classList.add('chat-container');
 		convodiv.appendChild(thiscvdiv);
-		thiscvdiv.appendChild(document.createTextNode('Conversation with ' + pub64));
-		let chatlog = document.createElement('pre');
+		let header = document.createElement('div');
+		header.classList.add('chat-header');
+		header.appendChild(document.createTextNode('Conversation with ' + pub64));
+		thiscvdiv.appendChild(header);
+		let chatlog = document.createElement('div');
+		chatlog.classList.add('messages');
 		thiscvdiv.appendChild(chatlog);
+		let area = document.createElement('div');
+		area.classList.add('input-area');
 		let inp = document.createElement('input');
-		thiscvdiv.appendChild(inp);
+		area.appendChild(inp);
 		let sendbutton = document.createElement('button');
 		sendbutton.appendChild(document.createTextNode('Send'));
 		sendbutton.onclick = () => {
 			console.log("queing msg send with ",pub64, inp.value);
 			if(context.send_chat(pub64, inp.value)){
-				chatlog.appendChild(document.createTextNode(time()+' me: ' + inp.value + '\n'));
+				let sent = document.createElement('div');
+				sent.classList.add('message');
+				sent.classList.add('sent');
+				sent.appendChild(document.createTextNode(time()+' me: ' + inp.value + '\n'));
+				chatlog.appendChild(sent);
 				inp.value = '';
 			}
 		};
-		thiscvdiv.appendChild(sendbutton);
+		area.appendChild(sendbutton);
+		thiscvdiv.appendChild(area);
 		chats[pub64] = chatlog;
 	}
 	function chatStarted(){
-		startbutton.style.display = 'none';
-		pwbox.style.display = 'none';
+		welcome.style.display = 'none';
+		contacts.style.display = 'flex';
 		newconvoid.style.display = '';
 		newconvobutton.style.display = '';
 	}
@@ -122,3 +749,4 @@
 </script>
 
 <script src="dist/main.js" type="module" onerror="trysrc()"></script>
+</div>

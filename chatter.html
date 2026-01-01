@@ -179,7 +179,6 @@
 		.chat-container {
 		  width: 100%;
 		  max-width: 800px;
-		  height: 90vh;
 		  background-color: #ffffff;
 		  border-radius: 12px;
 		  overflow: hidden;
@@ -321,6 +320,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: monospace;
     }
 
     .add-contact-btn:hover {
@@ -333,7 +333,7 @@
       background-color: #ffffff;
     }
 
-    .contact-item {
+    .contact {
       display: flex;
       align-items: center;
       padding: 14px 20px;
@@ -342,11 +342,11 @@
       border-bottom: 1px solid #f0f0f0;
     }
 
-    .contact-item:hover {
+    .contact:hover {
       background-color: #f5f5f5;
     }
 
-    .contact-item.active {
+    .contact.active {
       background-color: #ebebeb;
     }
 
@@ -487,13 +487,13 @@
     }
 
     /* Empty state */
-    .empty-state {
+    #empty {
       text-align: center;
       padding: 60px 20px;
       color: #888;
     }
 
-    .empty-state p {
+    #empty p {
       margin-top: 15px;
       font-size: 1.1rem;
     }
@@ -503,6 +503,10 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       background-color: #f0f2f5;
       flex-direction: column;
+    }
+
+    #convodiv {
+      flex: 1;
     }
 	</style>
 </head>
@@ -522,17 +526,7 @@
 	  </header>
 
 	  <div class="contacts-list" id="contactsList">
-	    <!--
-	    <div class="contact-item" onclick="openChat('alice@example.com')">
-	      <div class="contact-avatar"></div>
-	      <div class="contact-info">
-	        <div class="contact-name">Alice Johnson</div>
-	        <div class="contact-last-message">Hey! How's it going?</div>
-	      </div>
-	      <div class="contact-time">2:45 PM</div>
-	    </div>
-	    -->
-	    <div class="empty-state">
+	    <div id="empty">
 	      <div style="width:100px;height:100px;background:#ddd;border-radius:50%;margin:0 auto;"></div>
 	      <p>No conversations yet.<br>Tap + to add a contact and start chatting.</p>
 	    </div>
@@ -623,6 +617,11 @@
 	s.setAttribute('src', 'viz.js');
 	s.onload = () => {
 		graphbutton.onclick = () => {
+      if(graphdiv.style.display === 'block'){
+        graphdiv.style.display = 'none';
+        return;
+      }
+      graphdiv.style.display = 'block';
 			let dg = 'graph G {\n';
 			const lnks = window.context.getlinks();
 			for (let i = 0; i < lnks[0].length; i++) {
@@ -660,11 +659,18 @@
 		if (!(sender_pub64 in chats)) {
 			newChat(sender_pub64);
 		}
-		let sent = document.createElement('div');
-		sent.classList.add('message');
-		sent.classList.add('received');
-		sent.appendChild(document.createTextNode(time()+' them: ' + m + '\n'));
-		chats[sender_pub64].appendChild(sent);
+		let received = document.createElement('div');
+		received.classList.add('message');
+		received.classList.add('received');
+		received.appendChild(document.createTextNode(m + '\n'));
+    let times = document.createElement('time');
+    const timestr = time();
+    times.appendChild(document.createTextNode(timestr));
+    received.appendChild(times);
+		chats[sender_pub64].chatlog.appendChild(received);
+    chats[sender_pub64].last.childNodes[0].remove();
+    chats[sender_pub64].last.appendChild(document.createTextNode(m.substr(0,60)));
+    chats[sender_pub64].contactTime.innerHTML = timestr;
 	}
 	function time(){
 		d=new Date();
@@ -673,6 +679,39 @@
 	function newChat(pub64) {
 		console.log("starting chat with ",pub64);
     contacts.style.display = 'none';
+    /*
+      <div class="contact" onclick="openChat('abcd')">
+        <div class="contact-avatar"></div>
+        <div class="contact-info">
+          <div class="contact-name">Alice Johnson</div>
+          <div class="contact-last-message">Hey! How's it going?</div>
+        </div>
+        <div class="contact-time">2:45 PM</div>
+      </div>
+    */
+    let contact = document.createElement('div');
+    contact.classList.add('contact');
+    let info = document.createElement('div');
+    info.classList.add('contact-info');
+    let name = document.createElement('div');
+    name.classList.add('contact-name');
+    name.appendChild(document.createTextNode(pub64));
+    info.appendChild(name);
+    let last = document.createElement('div');
+    last.classList.add('contact-last-message');
+    last.appendChild(document.createTextNode('...'));
+    info.appendChild(last);
+    let contactTime = document.createElement('div');
+    contactTime.classList.add('contact-time');
+    contactTime.appendChild(document.createTextNode('not yet'));
+    info.appendChild(contactTime);
+    contact.appendChild(info);
+    contactsList.appendChild(contact);
+    contact.onclick = ()=>{
+      convodiv.style.display = 'flex';
+      contacts.style.display = 'none';
+    };
+    empty.style.display = 'none';
 //TODO: use static instead of generating every time?
 		/*
    <div class="chat-container">
@@ -688,16 +727,26 @@
    </div>
 		*/
 		//Create new chat window
-		let thiscvdiv = document.createElement('div');
-		thiscvdiv.classList.add('chat-container');
-		convodiv.appendChild(thiscvdiv);
+		let conversation = document.createElement('div');
+		conversation.classList.add('chat-container');
+		convodiv.appendChild(conversation);
 		let header = document.createElement('div');
 		header.classList.add('chat-header');
-		header.appendChild(document.createTextNode('Conversation with ' + pub64));
-		thiscvdiv.appendChild(header);
+    let backarrow = document.createElement('button');
+    //<button class="add-contact-btn" onclick="openAddContactModal()" aria-label="Add new contact">+</button>
+    backarrow.appendChild(document.createTextNode('<'));
+    backarrow.classList.add('add-contact-btn');
+    backarrow.onclick = ()=>{
+      convodiv.style.display='none';
+      contacts.style.display='flex';
+    };
+    header.appendChild(backarrow);
+    header.appendChild(document.createTextNode('Conversation with ' + pub64));
+		conversation.appendChild(header);
 		let chatlog = document.createElement('div');
 		chatlog.classList.add('messages');
-		thiscvdiv.appendChild(chatlog);
+    //TODO: load saved chat logs
+		conversation.appendChild(chatlog);
 		let area = document.createElement('div');
 		area.classList.add('input-area');
 		let inp = document.createElement('input');
@@ -710,14 +759,17 @@
 				let sent = document.createElement('div');
 				sent.classList.add('message');
 				sent.classList.add('sent');
-				sent.appendChild(document.createTextNode(time()+' me: ' + inp.value + '\n'));
+				sent.appendChild(document.createTextNode(inp.value + '\n'));
+        let times = document.createElement('time');
+        times.appendChild(document.createTextNode(time()));
+        sent.appendChild(times);
 				chatlog.appendChild(sent);
 				inp.value = '';
 			}
 		};
 		area.appendChild(sendbutton);
-		thiscvdiv.appendChild(area);
-		chats[pub64] = chatlog;
+		conversation.appendChild(area);
+		chats[pub64] = {chatlog, contactTime, conversation, contact, last, contactTime, name};
 	}
 	function chatStarted(){
 		welcome.style.display = 'none';

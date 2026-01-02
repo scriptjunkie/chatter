@@ -628,6 +628,12 @@
 				nciError.innerHTML = 'Error: invalid key';
 			}
 		};
+		newconvoid.onkeydown = (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				newconvobutton.onclick();
+			}
+		};
 	};
 	document.head.appendChild(s);
 	let chats = {};
@@ -744,6 +750,12 @@
 				inp.value = '';
 			}else{
 				keyspan.innerHTML = "Could not find a path to this user. Try again later.";
+			}
+		};
+		inp.onkeydown = (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				sendbutton.onclick();
 			}
 		};
 		area.appendChild(sendbutton);

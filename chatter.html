@@ -176,7 +176,7 @@
 			height: 40px;
 			background-color: #ddd;
 			border-radius: 50%;
-			background-image: url('https://via.placeholder.com/40'); /* Placeholder avatar */
+			/* background-image: url('https://via.placeholder.com/40'); Placeholder avatar */
 			background-size: cover;
 		}
 		.messages {
@@ -485,6 +485,8 @@
 				<div class="modal-body">
 					<label for="newconvoid">Contact key</label>
 					<input type="text" id="newconvoid" placeholder="asdf...=">
+					<label for="newconvoname">Contact Name</label>
+					<input type="text" id="newconvoname" placeholder="J. Q. Public">
 					<span id="nciError" class="error"></span>
 				</div>
 				<div class="modal-footer">
@@ -500,7 +502,7 @@
 					<button class="close-btn" onclick="closeModal(infoModal)">×</button>
 				</div>
 				<div class="modal-body">
-					<label for="newconvoid">My contact key</label>
+					<label for="infoInput">My contact key</label>
 					<input type="text" id="infoInput" placeholder="asdf...=">
 				</div>
 				<div class="modal-footer">
@@ -516,15 +518,17 @@
 		<p>Secure and private messaging. Choose how you'd like to begin.</p>
 
 		<div class="options">
-			<button class="btn-primary" id="startbutton">
-				Start New Profile
-			</button>
-
-			<button class="btn-secondary" onclick="showPasswordSection()">
-				Load Existing Profile
-			</button>
+			<button class="btn-primary" onclick="showUsernameSection()">Start New Profile</button>
+			<button class="btn-secondary" onclick="showPasswordSection()">Load Existing Profile</button>
 		</div>
 
+		<div class="password-section" id="usernameSection" style="display: none;">
+			<h2>Enter A Display Name</h2>
+			<div class="password-input-group">
+				<input type="text" id="usernameInput" placeholder="J. Q. Public">
+				<button class="btn-primary" id="startbutton">Start</button>
+			</div>
+		</div>
 		<div class="password-section" id="passwordSection" style="display: none;">
 			<h2>Enter Your Password</h2>
 			<div class="password-input-group">
@@ -537,7 +541,21 @@
 		</div>
 	</div>
 	<div id="graphdiv"></div>
-	<div id="convodiv"></div>
+	<div id="convodiv">
+		<div class="chat-container">
+			<div class="chat-header">
+				<button class="add-contact-btn" id="backarrow">&lt;</button>
+				<div>
+					<div id="convoheader">Conversation with Alice</div>
+					<div id="convokey" class="contact-time">BOI1i8qfd/lZclk44+fKfYz2y3v4wbHztnGcTmUas2lRVDw5rYPi8nw5Od/mLBeuEKL0lpBuiUYGZYAFhCmnx+I=</div>
+				</div>
+			</div>
+			<div class="messages" id="chatlog"></div>
+			<div class="input-area">
+				<input id="convoinput"><button id="sendbutton">Send</button>
+			</div>
+		</div>
+	</div>
 	<pre id="logsout"></pre>
 <script>
 	myinfo.onclick = ()=>{
@@ -549,8 +567,8 @@
 		window.getSelection().addRange(range);
 	};
 	function openAddContactModal() {
-		document.getElementById('addContactModal').style.display = 'flex';
-		document.getElementById('newconvoid').focus();
+		addContactModal.style.display = 'flex';
+		newconvoid.focus();
 	}
 	function openInfoModal() {
 		document.getElementById('infoModal').style.display = 'flex';
@@ -558,11 +576,15 @@
 
 	function closeModal(modal) {
 		modal.style.display = 'none';
-		document.getElementById('newconvoid').value = '';
+		newconvoid.value = '';
+	}
+	function showUsernameSection() {
+		usernameSection.style.display = 'block';
+		usernameInput.focus();
 	}
 	function showPasswordSection() {
-		document.getElementById('passwordSection').style.display = 'block';
-		document.getElementById('profilePassword').focus();
+		passwordSection.style.display = 'block';
+		pwbox.focus();
 	}
 	// Close modal when clicking outside
 	for(let modal of [addContactModal,infoModal]) modal.onclick = function(event) {
@@ -621,7 +643,9 @@
 			const theirkey64 = newconvoid.value.trim();
 			if(theirkey64.match(/^[0-9a-zA-Z\+\/]{87}=$/)){
 				closeModal(addContactModal);
-				newChat(theirkey64);
+				const theirname = newconvoname.value.trim();
+				window.context.set_screen_name(theirkey64, theirname);
+				newChat(theirkey64, theirname);
 				newconvoid.value = '';
 				nciError.innerHTML = '';
 			}else{
@@ -637,9 +661,9 @@
 	};
 	document.head.appendChild(s);
 	let chats = {};
-	function receivedChatMsg(m, sender_pub64) {
+	function receivedChatMsg(m, sender_pub64, sender_name, sent_time) {
 		if (!(sender_pub64 in chats)) {
-			newChat(sender_pub64);
+			newChat(sender_pub64, sender_name);
 		}
 		let received = document.createElement('div');
 		received.classList.add('message');
@@ -649,7 +673,8 @@
 		const timestr = time();
 		times.appendChild(document.createTextNode(timestr));
 		received.appendChild(times);
-		chats[sender_pub64].chatlog.appendChild(received);
+		chatlog.appendChild(received);
+		//TODO: save chat logs
 		chats[sender_pub64].last.childNodes[0].remove();
 		chats[sender_pub64].last.appendChild(document.createTextNode(m.substr(0,60)));
 		chats[sender_pub64].contactTime.innerHTML = timestr;
@@ -658,8 +683,35 @@
 		d=new Date();
 		return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()+" "+d.getHours()+":"+(d.getMinutes()<10?"0":"")+d.getMinutes();
 	}
-	function newChat(pub64) {
-		console.log("starting chat with ",pub64);
+	backarrow.onclick = ()=>{
+		convodiv.style.display='none';
+		contacts.style.display='flex';
+	};
+	sendbutton.onclick = async () => {
+		const pub64 = convokey.innerText;
+		console.log("queing msg send with ",pub64, convoinput.value);
+		if(await context.send_chat(pub64, convoinput.value)){
+			let sent = document.createElement('div');
+			sent.classList.add('message');
+			sent.classList.add('sent');
+			sent.appendChild(document.createTextNode(convoinput.value + '\n'));
+			let times = document.createElement('time');
+			times.appendChild(document.createTextNode(time()));
+			sent.appendChild(times);
+			chatlog.appendChild(sent);
+			convoinput.value = '';
+		}else{
+			keyspan.innerHTML = "Could not find a path to this user. Try again later.";
+		}
+	};
+	convoinput.onkeydown = (event) => {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			sendbutton.onclick();
+		}
+	};
+	function newChat(pub64, sender_name) {
+		console.log("starting chat with ", sender_name, pub64);
 		contacts.style.display = 'none';
 		convodiv.style.display = 'flex';
 		/*
@@ -678,7 +730,7 @@
 		info.classList.add('contact-info');
 		let name = document.createElement('div');
 		name.classList.add('contact-name');
-		name.appendChild(document.createTextNode(pub64));
+		name.appendChild(document.createTextNode(sender_name));
 		info.appendChild(name);
 		let last = document.createElement('div');
 		last.classList.add('contact-last-message');
@@ -695,72 +747,15 @@
 			contacts.style.display = 'none';
 		};
 		empty.style.display = 'none';
-//TODO: use static instead of generating every time?
-		/*
-	 <div class="chat-container">
-		 <div class="chat-header">...</div>
-		 <div class="messages">
-			 <div class="message received">... rcvd</div>
-			 <div class="message sent">...sent</div>
-		 </div>
-		 <div class="input-area">
-			 <input type="text" placeholder="Type a message...">
-			 <button>Send</button>
-		 </div>
-	 </div>
-		*/
-		//Create new chat window
-		let conversation = document.createElement('div');
-		conversation.classList.add('chat-container');
-		convodiv.appendChild(conversation);
-		let header = document.createElement('div');
-		header.classList.add('chat-header');
-		let backarrow = document.createElement('button');
-		//<button class="add-contact-btn" onclick="openAddContactModal()" aria-label="Add new contact">+</button>
-		backarrow.appendChild(document.createTextNode('<'));
-		backarrow.classList.add('add-contact-btn');
-		backarrow.onclick = ()=>{
-			convodiv.style.display='none';
-			contacts.style.display='flex';
-		};
-		header.appendChild(backarrow);
-		header.appendChild(document.createTextNode('Conversation with ' + pub64));
-		conversation.appendChild(header);
-		let chatlog = document.createElement('div');
-		chatlog.classList.add('messages');
+		//Fill in chat window
+		while(convoheader.childNodes.length > 0) convoheader.childNodes[0].remove();
+		convoheader.appendChild(document.createTextNode('Conversation with ' + sender_name));
+		while(convokey.childNodes.length > 0) convokey.childNodes[0].remove();
+		convokey.appendChild(document.createTextNode(pub64));
+		while(chatlog.childNodes.length > 0) chatlog.childNodes[0].remove();
 		//TODO: load saved chat logs
-		conversation.appendChild(chatlog);
-		let area = document.createElement('div');
-		area.classList.add('input-area');
-		let inp = document.createElement('input');
-		area.appendChild(inp);
-		let sendbutton = document.createElement('button');
-		sendbutton.appendChild(document.createTextNode('Send'));
-		sendbutton.onclick = async () => {
-			console.log("queing msg send with ",pub64, inp.value);
-			if(await context.send_chat(pub64, inp.value)){
-				let sent = document.createElement('div');
-				sent.classList.add('message');
-				sent.classList.add('sent');
-				sent.appendChild(document.createTextNode(inp.value + '\n'));
-				let times = document.createElement('time');
-				times.appendChild(document.createTextNode(time()));
-				sent.appendChild(times);
-				chatlog.appendChild(sent);
-				inp.value = '';
-			}else{
-				keyspan.innerHTML = "Could not find a path to this user. Try again later.";
-			}
-		};
-		inp.onkeydown = (event) => {
-			if (event.key === 'Enter') {
-				event.preventDefault();
-				sendbutton.onclick();
-			}
-		};
-		area.appendChild(sendbutton);
-		conversation.appendChild(area);
-		chats[pub64] = {chatlog, contactTime, conversation, contact, last, contactTime, name};
+		convoinput.focus();
+		chats[pub64] = {contactTime, contact, last, contactTime, name};
 	}
 	function chatStarted(){
 		welcome.style.display = 'none';
@@ -776,8 +771,8 @@
 			chatStarted();
 		});
 		startbutton.onclick = () => {
-			context.generate_keys(receivedChatMsg).then(() => {
-				context.setup_my_forwards(true, receivedChatMsg);
+			context.generate_keys(receivedChatMsg, usernameInput.value).then(() => {
+				context.listen();
 				chatStarted();
 			});
 		};

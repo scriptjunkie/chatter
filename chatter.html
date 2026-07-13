@@ -522,11 +522,39 @@
 			outline-color: white;
 			outline-style: solid;
 		}
+
+		.unsaved-profile-warn {
+			display: none;
+			flex: 1;
+			margin: 0 10px;
+			padding: 6px 12px;
+			border: none;
+			border-radius: 8px;
+			background-color: #ffc107;
+			color: #333;
+			font-size: 0.85rem;
+			font-weight: 600;
+			cursor: pointer;
+			text-align: center;
+			line-height: 1.3;
+			transition: background-color 0.2s;
+		}
+
+		.unsaved-profile-warn:hover {
+			background-color: #ffb300;
+		}
+
+		.unsaved-profile-warn.visible {
+			display: block;
+		}
+
+		.header .title.with-warn {
+			display: none;
+		}
 	</style>
 </head>
 <div class="header">
 	<span id="keyspan">DEBUG CONTROLS:</span>
-	<button id="savepwbutton" style="display:none;">Save profile</button>
 	<button id="graphbutton">Graph</button>
 	<button id="logsbutton">Get logs</button>
 	<input id="lognum" type="number" value="1">
@@ -535,7 +563,10 @@
 	<div class="contacts" id="contacts">
 		<header class="header">
 			<button class="add-contact-btn" id="myinfo">i</button>
-			<div class="title">Chats</div>
+			<div class="title" id="chatsTitle">Chats</div>
+			<button type="button" class="unsaved-profile-warn" id="unsavedProfileBtn" title="Click to save your profile with a password">
+				⚠ Temporary profile — tap to save
+			</button>
 			<button class="add-contact-btn" onclick="openAddContactModal()" aria-label="Add new contact">+</button>
 		</header>
 
@@ -578,6 +609,28 @@
 				</div>
 				<div class="modal-footer">
 					<button class="btn-add" onclick="closeModal(infoModal)">Close</button>
+				</div>
+			</div>
+		</div>
+		<div class="modal-overlay" id="saveProfileModal">
+			<div class="modal">
+				<div class="modal-header">
+					<span>Save profile</span>
+					<button class="close-btn" onclick="closeModal(saveProfileModal)">×</button>
+				</div>
+				<div class="modal-body">
+					<p style="margin-bottom: 12px; color: #667781; font-size: 0.95rem;">
+						This profile is temporary. Choose a password to save it and encrypt your chat history on this device.
+					</p>
+					<label for="savePwBox">Password</label>
+					<input type="password" id="savePwBox" placeholder="Choose a password" autocomplete="new-password">
+					<label for="savePwBoxConfirm">Confirm password</label>
+					<input type="password" id="savePwBoxConfirm" placeholder="Confirm password" autocomplete="new-password">
+					<span id="savePwError" class="error"></span>
+				</div>
+				<div class="modal-footer">
+					<button class="btn-cancel" onclick="closeModal(saveProfileModal)">Cancel</button>
+					<button class="btn-add" id="saveProfileConfirmBtn">Save</button>
 				</div>
 			</div>
 		</div>
@@ -648,7 +701,16 @@
 
 		function closeModal(modal) {
 			modal.style.display = 'none';
-			newconvoid.value = '';
+			if (modal === addContactModal) {
+				newconvoid.value = '';
+				newconvoname.value = '';
+				nciError.innerHTML = '';
+			}
+			if (modal === saveProfileModal) {
+				savePwBox.value = '';
+				savePwBoxConfirm.value = '';
+				savePwError.innerHTML = '';
+			}
 		}
 		function showUsernameSection() {
 			usernameSection.style.display = 'block';
@@ -658,8 +720,22 @@
 			passwordSection.style.display = 'block';
 			pwbox.focus();
 		}
+		function setUnsavedProfileWarning(show) {
+			if (show) {
+				unsavedProfileBtn.classList.add('visible');
+				chatsTitle.classList.add('with-warn');
+			} else {
+				unsavedProfileBtn.classList.remove('visible');
+				chatsTitle.classList.remove('with-warn');
+			}
+		}
+		function openSaveProfileModal() {
+			savePwError.innerHTML = '';
+			saveProfileModal.style.display = 'flex';
+			savePwBox.focus();
+		}
 		// Close modal when clicking outside
-		for (let modal of [addContactModal, infoModal]) modal.onclick = function (event) {
+		for (let modal of [addContactModal, infoModal, saveProfileModal]) modal.onclick = function (event) {
 			if (event.target === modal) {
 				closeModal(modal);
 			}
@@ -688,11 +764,8 @@
 				graphdiv.style.display = 'block';
 				let dg = 'graph G {\n';
 				const lnks = window.context.getlinks();
-				for (let i = 0; i < lnks[0].length; i++) {
-					for (let j of lnks[0][i]) {
-						dg += "alias_" + i + " -- node_" + j + ";\n";
-					}
-				}
+				for (let i = 0; i < lnks[0].length; i++)
+					dg += "alias_" + i + " [label=\"alias_"+i+"\\n" + Array.from(lnks[0][i]).join(" ") + "\"];\n";
 				for (let i = 0; i < lnks[1].length; i++) {
 					for (let j of lnks[1][i]) {
 						if (i < j) {
@@ -727,6 +800,7 @@
 					const theirname = newconvoname.value.trim();
 					window.context.set_screen_name(theirkey64, theirname);
 					newChat(theirkey64, theirname);
+					saveChatlogs();
 					newconvoid.value = '';
 					nciError.innerHTML = '';
 				} else {
@@ -753,45 +827,96 @@
 			}
 		};
 		document.head.appendChild(s);
-		let chats = {};
+		let chats = {}; // UI handles per contact
+		let chatlogs = {}; // pub64 -> { name, messages: [{ m, sent, t }] }
+		let profilePassword = null;
+		let currentChatPub64 = null;
+
+		async function saveChatlogs() {
+			// Only persist when a real profile password is known (saved or loaded profile).
+			if (profilePassword === null || typeof store_chatlogs !== 'function') return;
+			try {
+				await store_chatlogs(chatlogs, profilePassword);
+			} catch (e) {
+				console.log('failed to save chatlogs', e);
+			}
+		}
+
+		async function loadChatlogs() {
+			if (profilePassword === null || typeof load_chatlogs !== 'function') {
+				chatlogs = {};
+				return;
+			}
+			try {
+				chatlogs = await load_chatlogs(profilePassword);
+				if (!chatlogs || typeof chatlogs !== 'object') chatlogs = {};
+			} catch (e) {
+				console.log('no saved chatlogs or decrypt failed', e);
+				chatlogs = {};
+			}
+		}
+
+		function ensureChatlogEntry(pub64, name) {
+			if (!(pub64 in chatlogs)) {
+				chatlogs[pub64] = { name: name || pub64, messages: [] };
+			} else if (name) {
+				chatlogs[pub64].name = name;
+			}
+			return chatlogs[pub64];
+		}
+
+		function appendMessageToDom(m, sent, timestr) {
+			let bubble = document.createElement('div');
+			bubble.classList.add('message');
+			bubble.classList.add(sent ? 'sent' : 'received');
+			bubble.appendChild(document.createTextNode(m + '\n'));
+			let times = document.createElement('time');
+			times.appendChild(document.createTextNode(timestr));
+			bubble.appendChild(times);
+			chatlog.appendChild(bubble);
+		}
+
+		function updateContactPreview(pub64, m, timestr) {
+			if (!(pub64 in chats)) return;
+			chats[pub64].last.childNodes[0].remove();
+			chats[pub64].last.appendChild(document.createTextNode(m.substr(0, 60)));
+			chats[pub64].contactTime.innerHTML = timestr;
+		}
+
+		function recordMessage(pub64, name, m, sent, timestr) {
+			const entry = ensureChatlogEntry(pub64, name);
+			entry.messages.push({ m, sent, t: timestr });
+			saveChatlogs();
+			updateContactPreview(pub64, m, timestr);
+			if (currentChatPub64 === pub64) {
+				appendMessageToDom(m, sent, timestr);
+			}
+		}
+
 		function receivedChatMsg(m, sender_pub64, sender_name, sent_time) {
 			if (!(sender_pub64 in chats)) {
 				newChat(sender_pub64, sender_name);
 			}
-			let received = document.createElement('div');
-			received.classList.add('message');
-			received.classList.add('received');
-			received.appendChild(document.createTextNode(m + '\n'));
-			let times = document.createElement('time');
 			const timestr = time();
-			times.appendChild(document.createTextNode(timestr));
-			received.appendChild(times);
-			chatlog.appendChild(received);
-			//TODO: save chat logs
-			chats[sender_pub64].last.childNodes[0].remove();
-			chats[sender_pub64].last.appendChild(document.createTextNode(m.substr(0, 60)));
-			chats[sender_pub64].contactTime.innerHTML = timestr;
+			recordMessage(sender_pub64, sender_name, m, false, timestr);
 		}
 		function time() {
 			d = new Date();
 			return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate() + " " + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes();
 		}
 		backarrow.onclick = () => {
+			currentChatPub64 = null;
 			convodiv.style.display = 'none';
 			contacts.style.display = 'flex';
 		};
 		sendbutton.onclick = async () => {
 			const pub64 = convokey.innerText;
-			console.log("queing msg send with ", pub64, convoinput.value);
-			if (await context.send_chat(pub64, convoinput.value)) {
-				let sent = document.createElement('div');
-				sent.classList.add('message');
-				sent.classList.add('sent');
-				sent.appendChild(document.createTextNode(convoinput.value + '\n'));
-				let times = document.createElement('time');
-				times.appendChild(document.createTextNode(time()));
-				sent.appendChild(times);
-				chatlog.appendChild(sent);
+			const msg = convoinput.value;
+			console.log("queing msg send with ", pub64, msg);
+			if (await context.send_chat(pub64, msg)) {
+				const timestr = time();
+				const name = (pub64 in chatlogs) ? chatlogs[pub64].name : pub64;
+				recordMessage(pub64, name, msg, true, timestr);
 				convoinput.value = '';
 			} else {
 				keyspan.innerHTML = "Could not find a path to this user. Try again later.";
@@ -803,52 +928,68 @@
 				sendbutton.onclick();
 			}
 		};
-		function newChat(pub64, sender_name) {
-			console.log("starting chat with ", sender_name, pub64);
+		function element(type, css_class, children){
+			let el = document.createElement(type);
+			el.classList.add(css_class);
+			for(let child of children)
+				el.appendChild(child);
+			return el;
+		}
+		function ensureContactUi(pub64, sender_name) {
+			if (pub64 in chats) {
+				if (sender_name && chats[pub64].name) {
+					while (chats[pub64].name.childNodes.length > 0) chats[pub64].name.childNodes[0].remove();
+					chats[pub64].name.appendChild(document.createTextNode(sender_name));
+				}
+				return chats[pub64];
+			}
+			ensureChatlogEntry(pub64, sender_name);
+			let contactTime = element('div','contact-time',[document.createTextNode('not yet')]);
+			let last = element('div','contact-last-message',[document.createTextNode('...')]);
+			let name = element('div','contact-name',[document.createTextNode(sender_name)]);
+			let contact = element('div','contact',[
+				element('div','contact-info', [name, last, contactTime])
+			]);
+			contactsList.appendChild(contact);
+			contact.onclick = () => openChat(pub64);
+			empty.style.display = 'none';
+			const lastMsg = chatlogs[pub64].messages;
+			if (lastMsg.length > 0) {
+				const lm = lastMsg[lastMsg.length - 1];
+				last.childNodes[0].remove();
+				last.appendChild(document.createTextNode(lm.m.substr(0, 60)));
+				contactTime.innerHTML = lm.t;
+			}
+			chats[pub64] = { contactTime, contact, last, name };
+			return chats[pub64];
+		}
+		function openChat(pub64) {
+			const sender_name = (pub64 in chatlogs) ? chatlogs[pub64].name : pub64;
+			console.log("opening chat with ", sender_name, pub64);
+			ensureContactUi(pub64, sender_name);
+			currentChatPub64 = pub64;
 			contacts.style.display = 'none';
 			convodiv.style.display = 'flex';
-			/*
-				<div class="contact" onclick="openChat('abcd')">
-					<div class="contact-avatar"></div>
-					<div class="contact-info">
-						<div class="contact-name">Alice Johnson</div>
-						<div class="contact-last-message">Hey! How's it going?</div>
-					</div>
-					<div class="contact-time">2:45 PM</div>
-				</div>
-			*/
-			let contact = document.createElement('div');
-			contact.classList.add('contact');
-			let info = document.createElement('div');
-			info.classList.add('contact-info');
-			let name = document.createElement('div');
-			name.classList.add('contact-name');
-			name.appendChild(document.createTextNode(sender_name));
-			info.appendChild(name);
-			let last = document.createElement('div');
-			last.classList.add('contact-last-message');
-			last.appendChild(document.createTextNode('...'));
-			info.appendChild(last);
-			let contactTime = document.createElement('div');
-			contactTime.classList.add('contact-time');
-			contactTime.appendChild(document.createTextNode('not yet'));
-			info.appendChild(contactTime);
-			contact.appendChild(info);
-			contactsList.appendChild(contact);
-			contact.onclick = () => {
-				convodiv.style.display = 'flex';
-				contacts.style.display = 'none';
-			};
-			empty.style.display = 'none';
-			//Fill in chat window
 			while (convoheader.childNodes.length > 0) convoheader.childNodes[0].remove();
 			convoheader.appendChild(document.createTextNode('Conversation with ' + sender_name));
 			while (convokey.childNodes.length > 0) convokey.childNodes[0].remove();
 			convokey.appendChild(document.createTextNode(pub64));
 			while (chatlog.childNodes.length > 0) chatlog.childNodes[0].remove();
-			//TODO: load saved chat logs
+			if (pub64 in chatlogs) {
+				for (let msg of chatlogs[pub64].messages) {
+					appendMessageToDom(msg.m, msg.sent, msg.t);
+				}
+			}
 			convoinput.focus();
-			chats[pub64] = { contactTime, contact, last, contactTime, name };
+		}
+		function newChat(pub64, sender_name) {
+			ensureContactUi(pub64, sender_name);
+			openChat(pub64);
+		}
+		function restoreContactsFromChatlogs() {
+			for (let pub64 in chatlogs) {
+				ensureContactUi(pub64, chatlogs[pub64].name);
+			}
 		}
 		function chatStarted() {
 			welcome.style.display = 'none';
@@ -858,14 +999,54 @@
 		}
 		function setupButtons() {
 			context.set_debug_mode(true);
-			loadpwbutton.onclick = () => context.set_keys_from_password(pwbox.value, receivedChatMsg).then(chatStarted);
-			savepwbutton.onclick = () => context.generate_keys(receivedChatMsg).then(() => {
-				context.export_keys_with_password(pwbox.value);
-				chatStarted();
-			});
+			unsavedProfileBtn.onclick = () => openSaveProfileModal();
+			saveProfileConfirmBtn.onclick = async () => {
+				const pw = savePwBox.value;
+				const pw2 = savePwBoxConfirm.value;
+				if (!pw) {
+					savePwError.innerHTML = 'Enter a password';
+					return;
+				}
+				if (pw !== pw2) {
+					savePwError.innerHTML = 'Passwords do not match';
+					return;
+				}
+				try {
+					await context.export_keys_with_password(pw);
+					profilePassword = pw;
+					await saveChatlogs();
+					setUnsavedProfileWarning(false);
+					closeModal(saveProfileModal);
+				} catch (e) {
+					console.log(e);
+					savePwError.innerHTML = 'Failed to save profile';
+				}
+			};
+			savePwBoxConfirm.onkeydown = (event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					saveProfileConfirmBtn.onclick();
+				}
+			};
+			loadpwbutton.onclick = () => {
+				profilePassword = pwbox.value;
+				context.set_keys_from_password(pwbox.value, receivedChatMsg).then(async () => {
+					await loadChatlogs();
+					restoreContactsFromChatlogs();
+					setUnsavedProfileWarning(false);
+					chatStarted();
+				}).catch((e) => {
+					console.log(e);
+					profilePassword = null;
+					alert('Wrong password or corrupted profile');
+				});
+			};
 			startbutton.onclick = () => {
 				context.generate_keys(receivedChatMsg, usernameInput.value).then(() => {
 					context.listen();
+					profilePassword = null;
+					chatlogs = {};
+					setUnsavedProfileWarning(true);
 					chatStarted();
 				});
 			};
@@ -873,6 +1054,8 @@
 		function trysrc() {
 			import("./chattier/src/index.js").then((chattier) => {
 				window.context = chattier.context;
+				window.store_chatlogs = chattier.store_chatlogs;
+				window.load_chatlogs = chattier.load_chatlogs;
 				setupButtons();
 			});
 		}

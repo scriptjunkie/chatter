@@ -551,6 +551,64 @@
 		.header .title.with-warn {
 			display: none;
 		}
+
+		/* Contacts header network health (whole bar color) */
+		#contactsHeader {
+			transition: background-color 0.25s ease;
+		}
+
+		#contactsHeader.network-green {
+			background-color: #075e54;
+		}
+
+		#contactsHeader.network-yellow {
+			background-color: #c79100;
+			color: #fff;
+		}
+
+		#contactsHeader.network-red {
+			background-color: #c62828;
+			color: #fff;
+		}
+
+		.network-status-label {
+			font-size: 0.9rem;
+			font-weight: 600;
+			opacity: 0.95;
+			white-space: nowrap;
+		}
+
+		.network-status-label:empty {
+			display: none;
+		}
+
+		.header-title-row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex: 1;
+			min-width: 0;
+			padding-left: 10px;
+		}
+
+		.info-network-note {
+			margin-top: 14px;
+			padding: 10px 12px;
+			border-radius: 8px;
+			font-size: 0.9rem;
+			line-height: 1.4;
+			text-align: left;
+		}
+
+		.info-network-note.note-red {
+			background-color: #fdecea;
+			color: #b71c1c;
+		}
+
+		.info-network-note.note-yellow {
+			background-color: #fff8e1;
+			color: #8a6d00;
+		}
 	</style>
 </head>
 <div class="header">
@@ -561,12 +619,15 @@
 </div>
 <div id="body">
 	<div class="contacts" id="contacts">
-		<header class="header">
+		<header class="header network-red" id="contactsHeader">
 			<button class="add-contact-btn" id="myinfo">i</button>
-			<div class="title" id="chatsTitle">Chats</div>
-			<button type="button" class="unsaved-profile-warn" id="unsavedProfileBtn" title="Click to save your profile with a password">
-				⚠ Temporary profile — tap to save
-			</button>
+			<div class="header-title-row">
+				<div class="title" id="chatsTitle">Chats</div>
+				<span id="networkStatusLabel" class="network-status-label">Disconnected</span>
+				<button type="button" class="unsaved-profile-warn" id="unsavedProfileBtn" title="Click to save your profile with a password">
+					⚠ Temporary profile — tap to save
+				</button>
+			</div>
 			<button class="add-contact-btn" onclick="openAddContactModal()" aria-label="Add new contact">+</button>
 		</header>
 
@@ -606,6 +667,7 @@
 				<div class="modal-body">
 					<label for="infoInput">My contact key</label>
 					<input type="text" id="infoInput" placeholder="asdf...=">
+					<p id="infoNetworkNote" class="info-network-note" style="display: none;"></p>
 				</div>
 				<div class="modal-footer">
 					<button class="btn-add" onclick="closeModal(infoModal)">Close</button>
@@ -683,6 +745,7 @@
 	</div>
 	<pre id="logsout"></pre>
 	<script>
+		let lastNetworkStatus = { level: 'red', listening: false, direct_links: 0, known_nodes: 0 };
 		myinfo.onclick = () => {
 			infoInput.value = context.get_my_id();
 			openInfoModal();
@@ -695,7 +758,24 @@
 			addContactModal.style.display = 'flex';
 			newconvoid.focus();
 		}
+		function updateInfoNetworkNote(status) {
+			infoNetworkNote.classList.remove('note-red', 'note-yellow');
+			if (status.level === 'red') {
+				infoNetworkNote.textContent =
+					'You appear disconnected: either no other users are online right now, or peer-to-peer (WebRTC) connections are being blocked.';
+				infoNetworkNote.classList.add('note-red');
+				infoNetworkNote.style.display = 'block';
+			} else if (status.level === 'yellow') {
+				infoNetworkNote.textContent =
+					'Few other nodes are online and the network may not work well.';
+				infoNetworkNote.classList.add('note-yellow');
+				infoNetworkNote.style.display = 'block';
+			} else {
+				infoNetworkNote.style.display = 'none';
+			}
+		}
 		function openInfoModal() {
+			updateInfoNetworkNote(lastNetworkStatus);
 			document.getElementById('infoModal').style.display = 'flex';
 		}
 
@@ -834,7 +914,7 @@
 
 		async function saveChatlogs() {
 			// Only persist when a real profile password is known (saved or loaded profile).
-			if (profilePassword === null || typeof store_chatlogs !== 'function') return;
+			if (profilePassword === null) return;
 			try {
 				await store_chatlogs(chatlogs, profilePassword);
 			} catch (e) {
@@ -843,7 +923,7 @@
 		}
 
 		async function loadChatlogs() {
-			if (profilePassword === null || typeof load_chatlogs !== 'function') {
+			if (profilePassword === null) {
 				chatlogs = {};
 				return;
 			}
@@ -996,6 +1076,26 @@
 			contacts.style.display = 'flex';
 			newconvoid.style.display = '';
 			newconvobutton.style.display = '';
+			onNetworkStatusChange(context.network_status());
+		}
+		function onNetworkStatusChange(status) {
+			lastNetworkStatus = status || lastNetworkStatus;
+			contactsHeader.classList.remove('network-green', 'network-yellow', 'network-red');
+			contactsHeader.classList.add('network-' + status.level);
+			if (status.level === 'red')
+				networkStatusLabel.textContent = 'Disconnected';
+			else if (status.level === 'yellow')
+				networkStatusLabel.textContent = 'Degraded network';
+			else
+				networkStatusLabel.textContent = '';
+			contactsHeader.title =
+				'Network: ' + status.level +
+				'\nDirect links: ' + status.direct_links +
+				'\nKnown nodes: ' + status.known_nodes +
+				'\nListening: ' + (status.listening ? 'yes' : 'no');
+			keyspan.textContent = 'Network ' + status.level + ' · links ' + status.direct_links + ' · nodes ' + status.known_nodes + (status.listening ? ' · listening' : ' · not listening');
+			if (infoModal.style.display === 'flex')
+				updateInfoNetworkNote(status);
 		}
 		function setupButtons() {
 			context.set_debug_mode(true);
@@ -1030,11 +1130,12 @@
 			};
 			loadpwbutton.onclick = () => {
 				profilePassword = pwbox.value;
-				context.set_keys_from_password(pwbox.value, receivedChatMsg).then(async () => {
+				context.set_keys_from_password(pwbox.value, receivedChatMsg, onNetworkStatusChange).then(async () => {
 					await loadChatlogs();
 					restoreContactsFromChatlogs();
 					setUnsavedProfileWarning(false);
 					chatStarted();
+					context.listen().catch(e => console.log('listen after load failed', e));
 				}).catch((e) => {
 					console.log(e);
 					profilePassword = null;
@@ -1042,8 +1143,8 @@
 				});
 			};
 			startbutton.onclick = () => {
-				context.generate_keys(receivedChatMsg, usernameInput.value).then(() => {
-					context.listen();
+				context.generate_keys(receivedChatMsg, usernameInput.value, onNetworkStatusChange).then(() => {
+					context.listen().catch(e => console.log('listen failed', e));
 					profilePassword = null;
 					chatlogs = {};
 					setUnsavedProfileWarning(true);
